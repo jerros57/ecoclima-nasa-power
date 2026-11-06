@@ -1,0 +1,618 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#123c35">
+  <meta name="description" content="Panel orientativo de temperaturas mínimas y humedad histórica para agricultores de Chimborazo.">
+  <title>EcoClima Chimborazo | Riesgo de heladas</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #17352f;
+      --muted: #526761;
+      --paper: #f3f5ef;
+      --surface: #fffefa;
+      --line: #dce4dc;
+      --green: #176b47;
+      --yellow: #8a5700;
+      --red: #a12c28;
+      --forest: #123c35;
+      --shadow: 0 12px 30px rgb(22 53 47 / 8%);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      background:
+        radial-gradient(ellipse at 92% 0%, rgb(200 224 192 / 45%), transparent 34rem),
+        var(--paper);
+      color: var(--ink);
+      line-height: 1.5;
+    }
+
+    button, select { font: inherit; }
+    a { color: #155e49; text-underline-offset: 3px; }
+    a:hover { color: #0c4031; }
+    :focus-visible { outline: 3px solid #d27b20; outline-offset: 4px; }
+
+    .page { width: min(1120px, calc(100% - 40px)); margin: 0 auto; padding: 28px 0 32px; }
+    .topbar { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 36px; }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 5px 10px 5px 5px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #8c1d6b, #b93b91);
+      color: white;
+      font-size: 1rem;
+      font-weight: 800;
+      letter-spacing: -.02em;
+      transition: transform 200ms ease, box-shadow 200ms ease, filter 200ms ease;
+    }
+    .brand:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 16px rgb(140 29 107 / 25%);
+      filter: brightness(1.06);
+    }
+    .brand-mark {
+      display: grid;
+      width: 42px;
+      height: 42px;
+      place-items: center;
+      border-radius: 14px;
+      background: rgb(255 255 255 / 16%);
+      color: white;
+      font-size: 1.35rem;
+    }
+    .top-note { color: var(--muted); font-size: .86rem; text-align: right; }
+
+    .intro { max-width: 800px; margin-bottom: 26px; }
+    .eyebrow { margin: 0 0 8px; color: var(--green); font-size: .78rem; font-weight: 800; letter-spacing: .11em; text-transform: uppercase; }
+    h1 { margin: 0; font-size: clamp(2rem, 5vw, 3.4rem); line-height: 1.05; letter-spacing: -.045em; }
+    .intro-copy { max-width: 650px; margin: 14px 0 0; color: var(--muted); font-size: clamp(1rem, 2vw, 1.12rem); }
+
+    .controls {
+      display: flex;
+      align-items: end;
+      flex-wrap: wrap;
+      gap: 14px;
+      padding: 18px;
+      margin-bottom: 18px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+    .field { display: grid; gap: 6px; min-width: min(100%, 230px); }
+    label { color: var(--muted); font-size: .83rem; font-weight: 700; }
+    select, .button {
+      min-height: 48px;
+      border: 1px solid #b9c9bf;
+      border-radius: 11px;
+      background: white;
+      color: var(--ink);
+    }
+    select { padding: 0 38px 0 13px; font-weight: 700; }
+    #refresh.button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      padding: 0 18px;
+      border: 1px solid #8c1d6b;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #8c1d6b, #b93b91);
+      color: white;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform 200ms ease, box-shadow 200ms ease, filter 200ms ease;
+    }
+    #refresh.button:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 16px rgb(140 29 107 / 25%);
+      filter: brightness(1.06);
+    }
+    #refresh.button:focus-visible {
+      outline: 3px solid #171017;
+      outline-offset: 3px;
+      box-shadow: 0 0 0 2px #fff;
+    }
+    #refresh.button:disabled { cursor: wait; opacity: .72; }
+    #refresh[aria-busy="true"]::before {
+      width: 15px;
+      height: 15px;
+      border: 2px solid rgb(255 255 255 / 55%);
+      border-top-color: #fff;
+      border-radius: 50%;
+      content: "";
+      animation: refresh-spin 800ms linear infinite;
+    }
+    @keyframes refresh-spin { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) {
+      #refresh.button { transition: none; }
+      #refresh.button:hover:not(:disabled) { transform: none; }
+      #refresh[aria-busy="true"]::before { animation: none; }
+      .brand { transition: none; }
+      .brand:hover { transform: none; }
+    }
+
+    .notice {
+      display: flex;
+      align-items: flex-start;
+      gap: 11px;
+      padding: 14px 16px;
+      margin: 0 0 18px;
+      border: 1px solid #b4d2bc;
+      border-radius: 13px;
+      background: #e8f4e9;
+      color: #174b31;
+      font-weight: 700;
+    }
+    .notice[data-mode="fallback"] {
+      border-color: #e2a49b;
+      background: #fff0ec;
+      color: #76241f;
+    }
+    .notice-icon { flex: 0 0 auto; font-size: 1.2rem; }
+    .notice p { margin: 0; }
+    .notice small { display: block; margin-top: 3px; font-size: .83rem; font-weight: 500; }
+    [hidden] { display: none !important; }
+
+    .dashboard { display: grid; grid-template-columns: minmax(0, .86fr) minmax(0, 1.5fr); gap: 18px; }
+    .card {
+      min-width: 0;
+      padding: 22px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+    .section-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 19px; }
+    h2 { margin: 0; font-size: 1.18rem; letter-spacing: -.02em; }
+    .section-kicker { margin: 4px 0 0; color: var(--muted); font-size: .86rem; }
+    .period-tag {
+      flex: 0 0 auto;
+      padding: 5px 9px;
+      border: 1px solid #d5e0d7;
+      border-radius: 999px;
+      background: #f4f7f2;
+      color: #38564b;
+      font-size: .72rem;
+      font-weight: 800;
+      letter-spacing: .04em;
+    }
+
+    .risk-card { display: flex; flex-direction: column; }
+    .risk-indicator { display: flex; align-items: center; gap: 16px; padding: 18px; border-radius: 15px; }
+    .risk-indicator[data-risk="green"] { background: #e7f3e9; color: #174e31; }
+    .risk-indicator[data-risk="yellow"] { background: #fff3d8; color: #664200; }
+    .risk-indicator[data-risk="red"] { background: #fbe9e5; color: #79251f; }
+    .risk-light {
+      display: grid;
+      flex: 0 0 58px;
+      width: 58px;
+      height: 58px;
+      place-items: center;
+      border: 2px solid currentColor;
+      border-radius: 50%;
+      font-size: 1.45rem;
+    }
+    .risk-word { display: block; font-size: clamp(1.55rem, 3vw, 2rem); font-weight: 900; line-height: 1.1; }
+    .risk-detail { display: block; margin-top: 5px; font-size: .88rem; }
+    .metric-list { display: grid; gap: 0; margin: 18px 0 0; }
+    .metric {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 12px;
+      padding: 13px 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .metric:last-child { border-bottom: 0; }
+    .metric dt { color: var(--muted); font-size: .9rem; }
+    .metric dd { margin: 0; font-size: 1.22rem; font-weight: 850; white-space: nowrap; }
+    .guidance { margin: auto 0 0; padding-top: 15px; color: var(--muted); font-size: .83rem; }
+
+    .chart-card { display: flex; flex-direction: column; }
+    .legend { display: flex; flex-wrap: wrap; gap: 12px; margin: 0 0 8px; color: var(--muted); font-size: .8rem; }
+    .legend-item { display: inline-flex; align-items: center; gap: 7px; }
+    .legend-mark { width: 18px; height: 3px; border-radius: 2px; background: #22734b; }
+    .legend-mark.max { background: #d27b20; }
+    .legend-mark.humidity { height: 9px; border: 2px dashed #3774a0; background: transparent; }
+    .chart-wrap { width: 100%; min-height: 230px; }
+    svg { display: block; width: 100%; height: auto; overflow: visible; }
+    .chart-grid { stroke: #e2e8e2; stroke-width: 1; }
+    .chart-axis { fill: #526761; font-size: 11px; }
+    .chart-temp-min { fill: none; stroke: #22734b; stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round; }
+    .chart-temp-max { fill: none; stroke: #d27b20; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+    .chart-humidity { fill: none; stroke: #3774a0; stroke-width: 2.5; stroke-dasharray: 6 5; stroke-linecap: round; stroke-linejoin: round; }
+    .chart-dot { stroke: white; stroke-width: 2; }
+    .chart-caption { margin: 7px 0 0; color: var(--muted); font-size: .82rem; }
+    .source { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); font-size: .83rem; }
+    .source p { margin: 0; color: var(--muted); }
+    .source a { display: inline-block; margin-top: 5px; font-weight: 750; }
+    .footer { margin-top: 20px; color: var(--muted); font-size: .78rem; text-align: center; }
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    @media (max-width: 760px) {
+      .page { width: min(100% - 28px, 560px); padding-top: 18px; }
+      .topbar { margin-bottom: 27px; }
+      .dashboard { grid-template-columns: 1fr; }
+      .controls { align-items: stretch; }
+      .field { flex: 1 1 100%; }
+      .button { width: 100%; }
+      .card { padding: 18px; }
+      .chart-wrap { min-height: 190px; }
+    }
+
+    @media print {
+      body { background: white; }
+      .page { width: 100%; padding: 0; }
+      .controls { box-shadow: none; }
+      .card { box-shadow: none; break-inside: avoid; }
+      .button { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark" aria-hidden="true">⌁</span><span>EcoClima Chimborazo</span></div>
+      <div class="top-note">Herramienta orientativa<br>para el cuidado de tus cultivos</div>
+    </header>
+
+    <section class="intro" aria-labelledby="page-title">
+      <p class="eyebrow">Clima para decidir mejor</p>
+      <h1 id="page-title">¿Qué tan fría fue la noche?</h1>
+      <p class="intro-copy">Revisa temperaturas mínimas y humedad de la zona para anticipar riesgos de helada y cuidar tus cultivos.</p>
+    </section>
+
+    <section class="controls" aria-label="Consulta de localidad">
+      <div class="field">
+        <label for="location">Selecciona tu localidad</label>
+        <select id="location" name="location">
+          <option value="riobamba">Riobamba Centro</option>
+          <option value="guano">Guano</option>
+          <option value="colta">Colta</option>
+          <option value="alausi">Alausí</option>
+        </select>
+      </div>
+      <button class="button" id="refresh" type="button">
+        <span aria-hidden="true">↻</span><span id="refresh-label">Actualizar datos</span>
+      </button>
+    </section>
+
+    <div class="notice" id="notice" data-mode="live" role="status" aria-live="polite">
+      <span class="notice-icon" aria-hidden="true">●</span>
+      <p id="notice-text">Consultando NASA POWER…<small>Se mostrarán datos históricos del 1 al 7 de enero de 2024.</small></p>
+    </div>
+
+    <section class="dashboard" aria-label="Resumen climático">
+      <article class="card risk-card" aria-labelledby="risk-heading">
+        <div class="section-heading">
+          <div>
+            <h2 id="risk-heading">Riesgo orientativo</h2>
+            <p class="section-kicker" id="selected-place">Riobamba Centro</p>
+          </div>
+          <span class="period-tag">HISTÓRICO · ENERO 2024</span>
+        </div>
+        <div class="risk-indicator" id="risk-indicator" data-risk="yellow" aria-label="Nivel de riesgo orientativo">
+          <span class="risk-light" id="risk-icon" aria-hidden="true">!</span>
+          <span>
+            <span class="risk-word" id="risk-label">Cargando</span>
+            <span class="risk-detail" id="risk-detail">Evaluando temperatura mínima</span>
+          </span>
+        </div>
+        <dl class="metric-list">
+          <div class="metric">
+            <dt>Temperatura mínima del período</dt>
+            <dd id="min-temperature">—</dd>
+          </div>
+          <div class="metric">
+            <dt>Humedad relativa promedio</dt>
+            <dd id="humidity">—</dd>
+          </div>
+          <div class="metric">
+            <dt>Riesgo orientativo</dt>
+            <dd id="risk-metric">—</dd>
+          </div>
+        </dl>
+        <p class="guidance">Semáforo orientativo según la mínima registrada: verde &gt; 5 °C, amarillo &gt; 2 °C y ≤ 5 °C, rojo ≤ 2 °C. No reemplaza una alerta meteorológica oficial.</p>
+      </article>
+
+      <article class="card chart-card" aria-labelledby="chart-heading">
+        <div class="section-heading">
+          <div>
+            <h2 id="chart-heading">Temperatura y humedad</h2>
+            <p class="section-kicker">Variación diaria durante el período</p>
+          </div>
+          <span class="period-tag">7 DÍAS</span>
+        </div>
+        <div class="legend" aria-label="Leyenda de la gráfica">
+          <span class="legend-item"><span class="legend-mark"></span>Mínima (°C)</span>
+          <span class="legend-item"><span class="legend-mark max"></span>Máxima (°C)</span>
+          <span class="legend-item"><span class="legend-mark humidity"></span>Humedad (%)</span>
+        </div>
+        <div class="chart-wrap">
+          <svg id="chart" viewBox="0 0 640 270" role="img" aria-labelledby="chart-svg-title chart-description">
+            <title id="chart-svg-title">Temperaturas y humedad diarias</title>
+            <desc id="chart-description">Gráfica de temperaturas mínimas, máximas y humedad relativa.</desc>
+          </svg>
+        </div>
+        <p class="chart-caption" id="chart-summary">Los valores se presentan por día, del 1 al 7 de enero de 2024.</p>
+        <div class="source">
+          <p id="source-attribution">Fuente en espera: se indicará al terminar la consulta.</p>
+          <a id="source-link" href="https://power.larc.nasa.gov/data-access-viewer/" target="_blank" rel="noopener noreferrer">Abrir NASA POWER (fuente oficial) ↗</a>
+        </div>
+      </article>
+    </section>
+    <footer class="footer">EcoClima Chimborazo · Consulta orientativa de datos históricos, no pronóstico futuro.</footer>
+  </main>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const START_DATE = "20240101";
+      const END_DATE = "20240107";
+      const PARAMETERS = ["T2M", "T2M_MIN", "T2M_MAX", "RH2M"];
+      const locations = {
+        riobamba: { name: "Riobamba Centro", latitude: -1.67, longitude: -78.65, offset: 0 },
+        guano: { name: "Guano", latitude: -1.61, longitude: -78.63, offset: 1 },
+        colta: { name: "Colta", latitude: -1.72, longitude: -78.77, offset: -1 },
+        alausi: { name: "Alausí", latitude: -2.20, longitude: -78.85, offset: 2 }
+      };
+      const fallbackWeather = [
+        { min: 4.1, max: 16.8, humidity: 74 },
+        { min: 3.6, max: 17.2, humidity: 71 },
+        { min: 2.8, max: 16.1, humidity: 78 },
+        { min: 4.7, max: 18.0, humidity: 68 },
+        { min: 3.2, max: 17.5, humidity: 73 },
+        { min: 1.9, max: 15.8, humidity: 82 },
+        { min: 3.9, max: 17.1, humidity: 76 }
+      ];
+      const elements = {
+        location: document.getElementById("location"),
+        refresh: document.getElementById("refresh"),
+        refreshLabel: document.getElementById("refresh-label"),
+        notice: document.getElementById("notice"),
+        noticeText: document.getElementById("notice-text"),
+        place: document.getElementById("selected-place"),
+        minTemperature: document.getElementById("min-temperature"),
+        humidity: document.getElementById("humidity"),
+        riskMetric: document.getElementById("risk-metric"),
+        riskIndicator: document.getElementById("risk-indicator"),
+        riskIcon: document.getElementById("risk-icon"),
+        riskLabel: document.getElementById("risk-label"),
+        riskDetail: document.getElementById("risk-detail"),
+        chart: document.getElementById("chart"),
+        chartDescription: document.getElementById("chart-description"),
+        chartSummary: document.getElementById("chart-summary"),
+        sourceAttribution: document.getElementById("source-attribution"),
+        sourceLink: document.getElementById("source-link")
+      };
+      let activeController = null;
+      let requestNumber = 0;
+
+      function isValidCoordinate(latitude, longitude) {
+        return Number.isFinite(latitude) && Number.isFinite(longitude) &&
+          latitude >= -90 && latitude <= 90 && longitude >= -180 && longitude <= 180;
+      }
+
+      function makeApiUrl(location) {
+        if (!isValidCoordinate(location.latitude, location.longitude)) {
+          throw new Error("Las coordenadas de la localidad no son válidas.");
+        }
+        const url = new URL("https://power.larc.nasa.gov/api/temporal/daily/point");
+        url.search = new URLSearchParams({
+          parameters: PARAMETERS.join(","),
+          community: "AG",
+          longitude: String(location.longitude),
+          latitude: String(location.latitude),
+          start: START_DATE,
+          end: END_DATE,
+          format: "JSON"
+        }).toString();
+        return url;
+      }
+
+      function readSeries(payload) {
+        const series = payload && payload.properties && payload.properties.parameter;
+        if (!series || !PARAMETERS.every((name) => series[name] && typeof series[name] === "object")) {
+          throw new Error("La respuesta de NASA POWER no contiene los parámetros esperados.");
+        }
+        const days = [];
+        for (let day = 1; day <= 7; day += 1) {
+          const date = `${START_DATE.slice(0, 6)}${String(day).padStart(2, "0")}`;
+          const rawValues = PARAMETERS.map((name) => series[name][date]);
+          if (rawValues.some((value) => value === undefined || value === null || value === "")) {
+            throw new Error("La respuesta de NASA POWER contiene valores diarios incompletos.");
+          }
+          const values = rawValues.map(Number);
+          if (!values.every(Number.isFinite) || values.some((value) => value <= -900)) {
+            throw new Error("La respuesta de NASA POWER contiene valores diarios incompletos.");
+          }
+          const [mean, min, max, humidity] = values;
+          if (min > max || humidity < 0 || humidity > 100) {
+            throw new Error("La respuesta de NASA POWER contiene valores fuera de rango.");
+          }
+          days.push({ mean, min, max, humidity });
+        }
+        return days;
+      }
+
+      function riskFor(minimum) {
+        if (minimum <= 2) {
+          return { level: "red", label: "ALTO", icon: "!", detail: "Mínima ≤ 2 °C: posible riesgo de helada." };
+        }
+        if (minimum <= 5) {
+          return { level: "yellow", label: "PRECAUCIÓN", icon: "!", detail: "Mínima entre 2 y 5 °C: protege los cultivos sensibles." };
+        }
+        return { level: "green", label: "BAJO", icon: "✓", detail: "Mínima > 5 °C: menor riesgo orientativo de helada." };
+      }
+
+      function showNotice(mode, message, detail) {
+        elements.notice.dataset.mode = mode;
+        elements.noticeText.replaceChildren(document.createTextNode(message));
+        if (mode === "fallback") {
+          elements.sourceAttribution.textContent =
+            "Datos mostrados: simulados para respaldo; no son observaciones de NASA POWER.";
+        } else if (message === "HISTÓRICOS (ENERO 2024)") {
+          elements.sourceAttribution.textContent =
+            "Fuente meteorológica: NASA POWER. Datos diarios históricos; no son un pronóstico.";
+        }
+        if (detail) {
+          const small = document.createElement("small");
+          small.textContent = detail;
+          elements.noticeText.append(small);
+        }
+      }
+
+      function renderChart(days) {
+        const ns = "http://www.w3.org/2000/svg";
+        const width = 640;
+        const height = 270;
+        const plot = { left: 48, right: 594, top: 20, bottom: 214 };
+        const x = (index) => plot.left + index * (plot.right - plot.left) / 6;
+        const yTemp = (value) => plot.bottom - (value + 5) / 30 * (plot.bottom - plot.top);
+        const yHumidity = (value) => plot.bottom - value / 100 * (plot.bottom - plot.top);
+        const make = (name, attrs, text) => {
+          const node = document.createElementNS(ns, name);
+          Object.entries(attrs).forEach(([key, value]) => node.setAttribute(key, String(value)));
+          if (text !== undefined) node.textContent = text;
+          return node;
+        };
+        const fragment = document.createDocumentFragment();
+        const title = make("title", { id: "chart-svg-title" }, "Temperaturas y humedad diarias, 1 al 7 de enero de 2024");
+        const description = make("desc", { id: "chart-description" });
+        fragment.append(title, description);
+        for (let tick = -5; tick <= 25; tick += 5) {
+          const y = yTemp(tick);
+          fragment.append(make("line", { x1: plot.left, x2: plot.right, y1: y, y2: y, class: "chart-grid" }));
+          fragment.append(make("text", { x: plot.left - 10, y: y + 4, "text-anchor": "end", class: "chart-axis" }, `${tick}°`));
+        }
+        [0, 50, 100].forEach((tick) => {
+          fragment.append(make("text", { x: plot.right + 10, y: yHumidity(tick) + 4, class: "chart-axis" }, `${tick}%`));
+        });
+        days.forEach((day, index) => {
+          fragment.append(make("text", { x: x(index), y: plot.bottom + 22, "text-anchor": "middle", class: "chart-axis" }, `${index + 1} ene`));
+        });
+        const line = (key, yFn, className) => {
+          const points = days.map((day, index) => `${x(index)},${yFn(day[key])}`).join(" ");
+          fragment.append(make("polyline", { points, class: className }));
+          days.forEach((day, index) => {
+            fragment.append(make("circle", {
+              cx: x(index), cy: yFn(day[key]), r: 4, class: `chart-dot ${className}`,
+              fill: className === "chart-temp-min" ? "#22734b" : className === "chart-temp-max" ? "#d27b20" : "#3774a0"
+            }));
+          });
+        };
+        line("min", yTemp, "chart-temp-min");
+        line("max", yTemp, "chart-temp-max");
+        line("humidity", yHumidity, "chart-humidity");
+        elements.chart.replaceChildren(fragment);
+
+        const min = Math.min(...days.map((day) => day.min));
+        const max = Math.max(...days.map((day) => day.max));
+        const averageHumidity = days.reduce((sum, day) => sum + day.humidity, 0) / days.length;
+        description.textContent =
+          `Temperatura mínima entre ${min.toFixed(1)} y ${Math.max(...days.map((day) => day.min)).toFixed(1)} grados Celsius, máxima entre ${Math.min(...days.map((day) => day.max)).toFixed(1)} y ${max.toFixed(1)} grados, y humedad relativa diaria.`;
+        elements.chartDescription = description;
+        elements.chartSummary.textContent =
+          `En estos 7 días: temperaturas de ${min.toFixed(1)} a ${max.toFixed(1)} °C y humedad promedio de ${averageHumidity.toFixed(0)}%.`;
+      }
+
+      function renderData(days, location) {
+        const periodMinimum = Math.min(...days.map((day) => day.min));
+        const averageHumidity = days.reduce((sum, day) => sum + day.humidity, 0) / days.length;
+        const risk = riskFor(periodMinimum);
+        elements.place.textContent = location.name;
+        elements.minTemperature.textContent = `${periodMinimum.toFixed(1)} °C`;
+        elements.humidity.textContent = `${averageHumidity.toFixed(0)} %`;
+        elements.riskMetric.textContent = risk.label;
+        elements.riskIndicator.dataset.risk = risk.level;
+        elements.riskIndicator.setAttribute("aria-label", `Riesgo orientativo ${risk.label.toLowerCase()}`);
+        elements.riskIcon.textContent = risk.icon;
+        elements.riskLabel.textContent = risk.label;
+        elements.riskDetail.textContent = risk.detail;
+        renderChart(days);
+      }
+
+      function simulatedFor(location) {
+        return fallbackWeather.map((day) => ({
+          min: day.min + location.offset,
+          max: day.max + location.offset,
+          mean: (day.min + day.max) / 2 + location.offset,
+          humidity: Math.max(0, Math.min(100, day.humidity - location.offset * 2))
+        }));
+      }
+
+      async function loadWeather() {
+        const location = locations[elements.location.value];
+        if (!location) {
+          showNotice("fallback", "MODO RESPALDO (DATOS SIMULADOS)", "No se reconoce la localidad seleccionada. Se muestran valores simulados.");
+          return;
+        }
+        const currentRequest = ++requestNumber;
+        if (activeController) activeController.abort();
+        const controller = new AbortController();
+        activeController = controller;
+        const timeoutId = window.setTimeout(() => controller.abort(), 6000);
+        elements.refresh.disabled = true;
+        elements.refresh.setAttribute("aria-busy", "true");
+        elements.refreshLabel.textContent = "Cargando…";
+        showNotice("live", "Consultando NASA POWER…", "Período histórico: 1 al 7 de enero de 2024.");
+        try {
+          const apiUrl = makeApiUrl(location);
+          elements.sourceLink.href = apiUrl.toString();
+          const response = await fetch(apiUrl, {
+            method: "GET",
+            headers: { Accept: "application/json" },
+            signal: controller.signal
+          });
+          if (!response.ok) throw new Error(`NASA POWER respondió con estado ${response.status}.`);
+          const payload = await response.json();
+          const days = readSeries(payload);
+          if (currentRequest !== requestNumber) return;
+          renderData(days, location);
+          showNotice("live", "HISTÓRICOS (ENERO 2024)", "Datos diarios observados del 1 al 7 de enero de 2024; no son un pronóstico futuro.");
+        } catch (error) {
+          if (currentRequest !== requestNumber) return;
+          renderData(simulatedFor(location), location);
+          const reason = error && error.name === "AbortError"
+            ? "La consulta superó el límite de 6 segundos o fue cancelada."
+            : error instanceof Error ? error.message : "No fue posible validar la respuesta.";
+          showNotice("fallback", "MODO RESPALDO (DATOS SIMULADOS)", `${reason} Estos valores son simulados, no son mediciones reales ni un pronóstico.`);
+        } finally {
+          window.clearTimeout(timeoutId);
+          if (currentRequest === requestNumber) {
+            elements.refresh.disabled = false;
+            elements.refresh.removeAttribute("aria-busy");
+            elements.refreshLabel.textContent = "Actualizar datos";
+            activeController = null;
+          }
+        }
+      }
+
+      elements.refresh.addEventListener("click", loadWeather);
+      elements.location.addEventListener("change", loadWeather);
+      loadWeather();
+    })();
+  </script>
+</body>
+</html>
