@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f8f2">
+  <title>EcoClima Chimborazo</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    body { min-width: 320px; }
+    .chart-grid { stroke: #e8eee6; stroke-width: 1; }
+    .chart-label { fill: #849187; font-size: 11px; }
+    .chart-line { fill: none; stroke-linecap: round; stroke-linejoin: round; stroke-width: 3; }
+    .chart-dot { stroke: white; stroke-width: 2; }
+    .chart-x-label { fill: #64736a; font-size: 11px; }
+    #location-select {
+      appearance: none;
+      border-radius: 14px;
+      background: linear-gradient(110deg, #8C1D6B, #B93B91);
+      transition: transform 160ms ease, box-shadow 160ms ease, opacity 160ms ease;
+    }
+    #location-select:not(:disabled):hover { transform: translateY(-2px); }
+    #location-select:focus-visible {
+      outline: 3px solid #f0abfc;
+      outline-offset: 3px;
+      box-shadow: 0 0 0 5px rgb(140 29 107 / 28%);
+    }
+    #location-select:disabled { cursor: not-allowed; opacity: .55; }
+    #location-select[aria-busy="true"] ~ .select-arrow { display: none; }
+    #location-select[aria-busy="true"] ~ .select-spinner { display: block; }
+    .select-spinner {
+      display: none;
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      width: 18px;
+      height: 18px;
+      margin-top: -9px;
+      border: 2px solid rgb(255 255 255 / 35%);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: select-spin 700ms linear infinite;
+      pointer-events: none;
+    }
+    @keyframes select-spin { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
+      .select-spinner { animation-duration: 1.4s; }
+    }
+  </style>
+</head>
+<body class="bg-[#f5f8f2] text-slate-800 antialiased">
+  <main class="mx-auto min-h-screen max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
+    <header class="mb-8 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+      <div class="flex items-center gap-4">
+        <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-800 text-white shadow-lg shadow-emerald-900/10" aria-hidden="true">
+          <svg viewBox="0 0 32 32" class="h-8 w-8" fill="none">
+            <path d="M25.5 5.5C15 5.3 7 9.2 7 17.1c0 4.4 3 7.1 7.1 7.1 8.3 0 11.4-9.2 11.4-18.7Z" stroke="currentColor" stroke-width="2"/>
+            <path d="M5 27c4-7 9.2-11.4 16.3-15" stroke="currentColor" stroke-linecap="round" stroke-width="2"/>
+          </svg>
+        </div>
+        <div>
+          <p class="text-xs font-bold uppercase tracking-[.2em] text-emerald-700">Monitoreo agroclimático</p>
+          <h1 class="mt-1 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">EcoClima <span class="text-emerald-800">Chimborazo</span></h1>
+        </div>
+      </div>
+      <div class="flex items-center gap-3 self-start rounded-full border border-emerald-100 bg-white px-4 py-2.5 shadow-sm sm:self-auto">
+        <span class="relative flex h-2.5 w-2.5">
+          <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60"></span>
+          <span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-600"></span>
+        </span>
+        <span id="connection-label" class="text-sm font-semibold text-slate-600">Conectando con NASA POWER…</span>
+      </div>
+    </header>
+
+    <section class="mb-6 overflow-hidden rounded-3xl bg-emerald-950 px-6 py-7 text-white shadow-xl shadow-emerald-950/10 sm:px-9 sm:py-9">
+      <div class="relative z-10 flex flex-col justify-between gap-6 md:flex-row md:items-end">
+        <div class="max-w-2xl">
+          <p class="mb-3 text-xs font-bold uppercase tracking-[.22em] text-emerald-300">Clima para una agricultura resiliente</p>
+          <h2 class="text-3xl font-bold leading-tight tracking-tight sm:text-4xl">El clima de hoy,<br class="sm:hidden"> decisiones más seguras.</h2>
+          <p class="mt-3 max-w-xl text-sm leading-6 text-emerald-100/75 sm:text-base">Datos diarios para anticipar heladas y cuidar tus cultivos en la provincia de Chimborazo.</p>
+        </div>
+        <label class="block w-full md:w-64">
+          <span class="mb-2 block text-xs font-bold uppercase tracking-wider text-emerald-200">Localidad</span>
+          <span class="relative block">
+            <select id="location-select" aria-busy="false" class="w-full appearance-none rounded-xl border border-white/15 bg-white/10 px-4 py-3 pr-10 font-semibold text-white outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-300/30">
+              <option class="text-slate-900" value="riobamba">Riobamba Centro</option>
+              <option class="text-slate-900" value="guano">Guano</option>
+              <option class="text-slate-900" value="colta">Colta</option>
+              <option class="text-slate-900" value="alausi">Alausí</option>
+            </select>
+            <svg class="select-arrow pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-100" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M5.2 7.4a.75.75 0 0 1 1.06 0L10 11.14l3.74-3.74a.75.75 0 1 1 1.06 1.06l-4.27 4.27a.75.75 0 0 1-1.06 0L5.2 8.46a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"/></svg>
+            <span class="select-spinner" aria-hidden="true"></span>
+          </span>
+        </label>
+      </div>
+      <div class="pointer-events-none absolute" aria-hidden="true"></div>
+    </section>
+
+    <div id="fallback-banner" class="mb-6 hidden items-center gap-3 rounded-2xl border border-amber-300 bg-amber-50 px-5 py-4 text-amber-950" role="status" aria-live="polite">
+      <svg class="h-5 w-5 shrink-0 text-amber-700" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 8v4m0 4h.01M10.3 3.9 1.8 18.5A1.7 1.7 0 0 0 3.3 21h17.4a1.7 1.7 0 0 0 1.5-2.5L13.7 3.9a1.9 1.9 0 0 0-3.4 0Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div>
+        <p class="text-sm font-extrabold tracking-wide">MODO RESPALDO (DATOS SIMULADOS)</p>
+        <p id="fallback-detail" class="mt-0.5 text-xs text-amber-900/80">No fue posible obtener datos actuales. Se muestran valores de referencia.</p>
+      </div>
+    </div>
+
+    <section aria-labelledby="metrics-title">
+      <div class="mb-4 flex items-end justify-between gap-4">
+        <div>
+          <p class="text-xs font-bold uppercase tracking-[.18em] text-emerald-700">Resumen del periodo</p>
+          <h2 id="metrics-title" class="mt-1 text-xl font-bold text-slate-900">Condiciones actuales</h2>
+        </div>
+        <p id="updated-label" class="text-right text-xs text-slate-500 sm:text-sm">Últimos datos disponibles</p>
+      </div>
+      <div class="grid gap-4 md:grid-cols-3">
+        <article class="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm sm:p-6">
+          <div class="flex items-start justify-between">
+            <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-50 text-sky-700">
+              <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M14 14.8V5a3 3 0 0 0-6 0v9.8a5 5 0 1 0 6 0Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M11 12V6m0 11v.1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            </div>
+            <span class="rounded-full bg-sky-50 px-2.5 py-1 text-xs font-bold text-sky-700">Temperatura</span>
+          </div>
+          <p class="mt-5 text-sm font-medium text-slate-500">Temperatura mínima</p>
+          <p class="mt-1"><span id="metric-temp" class="text-4xl font-extrabold tracking-tight text-slate-900">—</span><span class="ml-1 text-lg font-semibold text-slate-400">°C</span></p>
+          <p id="metric-temp-caption" class="mt-2 text-xs text-slate-500">Mínima diaria más reciente</p>
+        </article>
+        <article class="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm sm:p-6">
+          <div class="flex items-start justify-between">
+            <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-700">
+              <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3.5S5.5 11 5.5 15.1a6.5 6.5 0 1 0 13 0C18.5 11 12 3.5 12 3.5Z" stroke="currentColor" stroke-width="1.8"/><path d="M9.3 16.3a2.8 2.8 0 0 0 2.8 2.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            </div>
+            <span class="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-700">Humedad</span>
+          </div>
+          <p class="mt-5 text-sm font-medium text-slate-500">Humedad relativa</p>
+          <p class="mt-1"><span id="metric-humidity" class="text-4xl font-extrabold tracking-tight text-slate-900">—</span><span class="ml-1 text-lg font-semibold text-slate-400">%</span></p>
+          <p id="metric-humidity-caption" class="mt-2 text-xs text-slate-500">Promedio diario más reciente</p>
+        </article>
+        <article class="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm sm:p-6">
+          <div class="flex items-start justify-between">
+            <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+              <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3 20 6v5c0 5-3.4 8.4-8 10-4.6-1.6-8-5-8-10V6l8-3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="m8.5 12 2.2 2.2 4.8-4.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">Riesgo agrícola</span>
+          </div>
+          <p class="mt-5 text-sm font-medium text-slate-500">Semáforo de riesgo de helada</p>
+          <div class="mt-2 flex items-center gap-3">
+            <span id="risk-light" class="h-4 w-4 rounded-full bg-slate-300 ring-4 ring-slate-100" aria-hidden="true"></span>
+            <span id="metric-risk" class="text-2xl font-extrabold tracking-tight text-slate-900">—</span>
+          </div>
+          <p id="metric-risk-caption" class="mt-2 text-xs text-slate-500">Según la temperatura mínima diaria</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="mt-6 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm sm:p-7" aria-labelledby="chart-title">
+      <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p class="text-xs font-bold uppercase tracking-[.18em] text-emerald-700">Tendencia semanal</p>
+          <h2 id="chart-title" class="mt-1 text-xl font-bold text-slate-900">Temperatura y humedad · 7 días</h2>
+        </div>
+        <div class="flex flex-wrap gap-x-4 gap-y-2 text-xs font-semibold text-slate-600">
+          <span class="inline-flex items-center gap-2"><i class="h-2.5 w-2.5 rounded-full bg-rose-500"></i>Máxima</span>
+          <span class="inline-flex items-center gap-2"><i class="h-2.5 w-2.5 rounded-full bg-amber-500"></i>Media</span>
+          <span class="inline-flex items-center gap-2"><i class="h-2.5 w-2.5 rounded-full bg-sky-600"></i>Mínima</span>
+          <span class="inline-flex items-center gap-2"><i class="h-2.5 w-2.5 rounded-full bg-violet-500"></i>Humedad</span>
+        </div>
+      </div>
+      <div class="relative h-72 w-full sm:h-80">
+        <svg id="climate-chart" class="h-full w-full overflow-visible" role="img" aria-labelledby="chart-title chart-description"></svg>
+        <p id="chart-description" class="sr-only">Gráfica de siete días con temperatura mínima, media y máxima en grados Celsius y humedad relativa en porcentaje.</p>
+      </div>
+      <div class="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-4 text-xs text-slate-500">
+        <span>Temperatura en °C · Humedad relativa en %</span>
+        <span id="source-label">Fuente: NASA POWER · datos diarios</span>
+      </div>
+    </section>
+
+    <footer class="mt-6 flex flex-col justify-between gap-2 pb-4 text-xs text-slate-500 sm:flex-row">
+      <span>EcoClima Chimborazo · Información para la toma de decisiones agrícolas</span>
+      <span>Los datos simulados son únicamente referenciales.</span>
+    </footer>
+  </main>
+
+  <script>
+    "use strict";
+
+    const NASA_URL = "https://power.larc.nasa.gov/api/temporal/daily/point?parameters=T2M,T2M_MIN,T2M_MAX,RH2M&community=AG&longitude=-78.65&latitude=-1.67&start=20240101&end=20240107&format=JSON";
+    const TIMEOUT_MS = 6000;
+    const locationSelect = document.getElementById("location-select");
+    const chart = document.getElementById("climate-chart");
+    const fallbackBanner = document.getElementById("fallback-banner");
+    const locations = {
+      riobamba: { name: "Riobamba Centro", shift: 0 },
+      guano: { name: "Guano", shift: -0.8 },
+      colta: { name: "Colta", shift: -1.7 },
+      alausi: { name: "Alausí", shift: 1.3 }
+    };
+    let activeController = null;
+    let requestSequence = 0;
+
+    function formatDay(dateKey) {
+      const month = Number(dateKey.slice(4, 6)) - 1;
+      const day = Number(dateKey.slice(6, 8));
+      return new Intl.DateTimeFormat("es-EC", { day: "2-digit", month: "short", timeZone: "UTC" })
+        .format(new Date(Date.UTC(2024, month, day)));
+    }
+
+    function parsePowerData(payload) {
+      const parameters = payload && payload.properties && payload.properties.parameter;
+      if (!parameters || !parameters.T2M || !parameters.T2M_MIN || !parameters.T2M_MAX || !parameters.RH2M) {
+        throw new Error("La respuesta de NASA POWER no contiene las variables esperadas.");
+      }
+      const dates = Object.keys(parameters.T2M).sort();
+      const rows = dates.map(date => ({
+        date,
+        mean: Number(parameters.T2M[date]),
+        min: Number(parameters.T2M_MIN[date]),
+        max: Number(parameters.T2M_MAX[date]),
+        humidity: Number(parameters.RH2M[date])
+      })).filter(row => [row.mean, row.min, row.max, row.humidity].every(Number.isFinite)
+        && ![row.mean, row.min, row.max, row.humidity].includes(-999));
+      if (rows.length === 0) throw new Error("NASA POWER no devolvió observaciones válidas.");
+      return rows;
+    }
+
+    function makeSimulatedData(locationKey) {
+      const shift = locations[locationKey].shift;
+      const means = [11.4, 12.1, 10.8, 11.7, 12.5, 10.9, 11.8];
+      const minOffsets = [5.1, 4.7, 5.4, 4.9, 4.6, 5.2, 4.8];
+      const maxOffsets = [7.2, 7.8, 7.1, 7.6, 7.9, 7.3, 7.7];
+      const humidities = [78, 75, 82, 79, 73, 84, 77];
+      const start = Date.UTC(2024, 0, 1);
+      return means.map((mean, index) => {
+        const date = new Date(start + index * 86400000);
+        const key = `${date.getUTCFullYear()}${String(date.getUTCMonth() + 1).padStart(2, "0")}${String(date.getUTCDate()).padStart(2, "0")}`;
+        return {
+          date: key,
+          mean: mean + shift,
+          min: mean - minOffsets[index] + shift,
+          max: mean + maxOffsets[index] + shift,
+          humidity: Math.max(35, Math.min(98, humidities[index] + Math.round(shift * 1.5)))
+        };
+      });
+    }
+
+    function renderMetrics(rows) {
+      const latest = rows[rows.length - 1];
+      document.getElementById("metric-temp").textContent = latest.min.toFixed(1);
+      document.getElementById("metric-temp-caption").textContent = `Mínima diaria · ${formatDay(latest.date)}`;
+      document.getElementById("metric-humidity").textContent = Math.round(latest.humidity);
+      document.getElementById("metric-humidity-caption").textContent = `Promedio diario · ${formatDay(latest.date)}`;
+
+      const riskLabel = latest.min > 5 ? "Bajo" : latest.min > 2 ? "Precaución" : "Alto";
+      const riskClass = latest.min > 5
+        ? ["bg-emerald-500", "ring-emerald-100", "text-emerald-700"]
+        : latest.min > 2
+          ? ["bg-amber-400", "ring-amber-100", "text-amber-700"]
+          : ["bg-rose-500", "ring-rose-100", "text-rose-700"];
+      const light = document.getElementById("risk-light");
+      light.className = `h-4 w-4 rounded-full ring-4 ${riskClass[0]} ${riskClass[1]}`;
+      document.getElementById("metric-risk").textContent = riskLabel;
+      document.getElementById("metric-risk").className = `text-2xl font-extrabold tracking-tight ${riskClass[2]}`;
+      document.getElementById("metric-risk-caption").textContent = latest.min > 5
+        ? "Verde · mínima > 5 °C"
+        : latest.min > 2
+          ? "Amarillo · mínima > 2 y ≤ 5 °C"
+          : "Rojo · mínima ≤ 2 °C";
+      document.getElementById("updated-label").textContent = `Último día del periodo · ${formatDay(latest.date)}`;
+    }
+
+    function drawChart(rows) {
+      const width = Math.max(320, Math.round(chart.getBoundingClientRect().width));
+      const height = Math.max(240, Math.round(chart.getBoundingClientRect().height));
+      const padding = { top: 16, right: 42, bottom: 36, left: 38 };
+      const plotWidth = width - padding.left - padding.right;
+      const plotHeight = height - padding.top - padding.bottom;
+      const temps = rows.flatMap(row => [row.min, row.mean, row.max]);
+      const tMin = Math.floor(Math.min(...temps) / 5) * 5 - 2;
+      const tMax = Math.ceil(Math.max(...temps) / 5) * 5 + 2;
+      const x = index => padding.left + (rows.length <= 1 ? plotWidth / 2 : index * plotWidth / (rows.length - 1));
+      const yTemp = value => padding.top + (tMax - value) / (tMax - tMin) * plotHeight;
+      const yHumidity = value => padding.top + (100 - value) / 100 * plotHeight;
+      const ns = "http://www.w3.org/2000/svg";
+      chart.setAttribute("viewBox", `0 0 ${width} ${height}`);
+      chart.replaceChildren();
+
+      const add = (tag, attrs, parent = chart) => {
+        const element = document.createElementNS(ns, tag);
+        Object.entries(attrs).forEach(([key, value]) => element.setAttribute(key, value));
+        parent.appendChild(element);
+        return element;
+      };
+      const gridGroup = add("g", { "aria-hidden": "true" });
+      for (let tick = 0; tick <= 4; tick++) {
+        const value = tMin + (tMax - tMin) * tick / 4;
+        const y = yTemp(value);
+        add("line", { x1: padding.left, y1: y, x2: width - padding.right, y2: y, class: "chart-grid" }, gridGroup);
+        const label = add("text", { x: padding.left - 8, y: y + 4, "text-anchor": "end", class: "chart-label" }, gridGroup);
+        label.textContent = `${Math.round(value)}°`;
+        const humidityValue = 100 - tick * 25;
+        const humidityLabel = add("text", { x: width - padding.right + 8, y: y + 4, "text-anchor": "start", class: "chart-label" }, gridGroup);
+        humidityLabel.textContent = `${humidityValue}%`;
+      }
+
+      const series = [
+        { key: "max", color: "#f43f5e", y: yTemp },
+        { key: "mean", color: "#f59e0b", y: yTemp },
+        { key: "min", color: "#0284c7", y: yTemp },
+        { key: "humidity", color: "#8b5cf6", y: yHumidity }
+      ];
+      series.forEach(item => {
+        const points = rows.map((row, index) => `${x(index)},${item.y(row[item.key])}`);
+        add("polyline", { points: points.join(" "), class: "chart-line", stroke: item.color });
+        rows.forEach((row, index) => {
+          const circle = add("circle", { cx: x(index), cy: item.y(row[item.key]), r: 4, fill: item.color, class: "chart-dot" });
+          const title = add("title", {}, circle);
+          title.textContent = `${formatDay(row.date)}: ${item.key === "humidity" ? `${Math.round(row[item.key])}%` : `${row[item.key].toFixed(1)} °C`}`;
+        });
+      });
+      rows.forEach((row, index) => {
+        const label = add("text", { x: x(index), y: height - 10, "text-anchor": "middle", class: "chart-x-label" });
+        label.textContent = formatDay(row.date);
+      });
+    }
+
+    async function loadClimate() {
+      const sequence = ++requestSequence;
+      if (activeController) activeController.abort();
+      const controller = new AbortController();
+      activeController = controller;
+      const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
+      const connection = document.getElementById("connection-label");
+      connection.textContent = "Consultando NASA POWER…";
+      fallbackBanner.classList.add("hidden");
+      fallbackBanner.classList.remove("flex");
+
+      try {
+        const response = await fetch(NASA_URL, { signal: controller.signal, cache: "no-store" });
+        if (!response.ok) throw new Error(`NASA POWER respondió con estado ${response.status}.`);
+        const rows = parsePowerData(await response.json());
+        if (sequence !== requestSequence) return;
+        renderMetrics(rows);
+        drawChart(rows);
+        connection.textContent = "Datos de NASA POWER";
+        document.getElementById("source-label").textContent = "Fuente: NASA POWER · datos diarios";
+      } catch (error) {
+        if (sequence !== requestSequence) return;
+        const timedOut = controller.signal.aborted;
+        document.getElementById("fallback-detail").textContent = timedOut
+          ? "La consulta superó el límite de 6 segundos. Se muestran valores de referencia."
+          : "No fue posible obtener datos actuales. Se muestran valores de referencia.";
+        const rows = makeSimulatedData(locationSelect.value);
+        renderMetrics(rows);
+        drawChart(rows);
+        fallbackBanner.classList.remove("hidden");
+        fallbackBanner.classList.add("flex");
+        connection.textContent = "Datos simulados";
+        document.getElementById("source-label").textContent = "Fuente: datos simulados · no son observaciones NASA POWER";
+      } finally {
+        clearTimeout(timeout);
+        if (activeController === controller) activeController = null;
+      }
+    }
+
+    locationSelect.addEventListener("change", loadClimate);
+    window.addEventListener("resize", () => {
+      if (chart.childElementCount) {
+        const currentRows = chart.dataset.rows ? JSON.parse(chart.dataset.rows) : null;
+        if (currentRows) drawChart(currentRows);
+      }
+    });
+
+    const originalDrawChart = drawChart;
+    drawChart = function(rows) {
+      chart.dataset.rows = JSON.stringify(rows);
+      originalDrawChart(rows);
+    };
+    loadClimate();
+  </script>
+</body>
+</html>
